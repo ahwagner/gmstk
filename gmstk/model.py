@@ -1,29 +1,30 @@
-__author__ = 'Alex H Wagner'
-
 from gmstk.linusbox import *
+import logging
+
 
 class GMSModel:
 
     linus = LinusBox()
     linus.connect()
 
+    gms_type = 'model'
+
     def __init__(self, model_id, **kwargs):
         self.model_id = model_id
-        self.gms_type = ''
         for kw in kwargs:
             setattr(self, kw, kwargs[kw])
-        self.show_values = None
         self.filter_values = {'id': self.model_id}
 
     def update(self, raw=False):
         """raw=False processes attributes extracted from call response. raw=True returns the call response instead."""
+        logging.debug('Update requested: %s', self.model_id)
         vd = self.show_values
         keys = sorted(vd)
         v_call = ','.join([vd[x] for x in keys])
         fd = self.filter_values
         f_keys = sorted(fd)
         f_call = ','.join(['{0}={1}'.format(x, fd[x]) for x in f_keys])
-        c = 'genome model {0} list --noheaders'.format(self.gms_type)
+        c = 'genome {0} list --noheaders'.format(self.gms_type)
         if f_call:
             c += ' --filter {0}'.format(f_call)
         if v_call:
@@ -41,29 +42,21 @@ class GMSModel:
             setattr(self, k, d[k])
 
     def attributes(self):
-        return [x for x in dir(self) if x not in dir(self.__class__)]
+        return {x: getattr(self, x) for x in dir(self) if x not in dir(self.__class__)}
 
 
 class GMSModelGroup(GMSModel):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.models = []
-
-    def update(self, raw=False):
-        """raw=False processes attributes extracted from call response. raw=True returns the call response instead."""
-        r = super().update(raw=True)
-        if raw:
-            return r
-        keys = sorted(self.show_values)
-        for line in r.stdout:
-            d = dict(zip(keys, line.split()))
-            d = {k: v for k, v in d.items() if v != '<NULL>'}
-            primary_parent_class = self.__class__.__bases__[0]
-            self.models.append(primary_parent_class(**d))
+        GMSModel.__init__(self, *args, **kwargs)
+        self.models = {}
 
     def __len__(self):
         return len(self.models)
+
+    @property
+    def model_ids(self):
+        return set(self.models.keys())
 
     # def select(self, **kw):
     #     keys = sorted(self.show_values)

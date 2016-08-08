@@ -1,11 +1,11 @@
-__author__ = 'Alex H Wagner'
-
 from gmstk.linusbox import *
 import os
 import shutil
 
+
 def enquote(string):
     return "'" + string + "'"
+
 
 class TestLinusBox:
 

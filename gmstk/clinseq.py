@@ -21,7 +21,7 @@ class ClinSeqModelGroup(ClinSeqModel, GMSModelGroup):
     pass
 
 if __name__ == '__main__':
-    from rnaseq import RNAModel
+    from gmstk.rnaseq import RNAModel
     c = ClinSeqModelGroup('d7369c20395742568c79bdf0999d1f30')
     c.update()
     rnaseq = [RNAModel(x.tumor_rnaseq) for x in c.models if hasattr(x, 'tumor_rnaseq')]

@@ -1,7 +1,6 @@
 __author__ = 'Alex H Wagner'
 
 import paramiko
-import time
 import warnings
 from pathlib import Path
 from gmstk.config import *
@@ -25,75 +24,58 @@ class LinusBox:
         self._client = paramiko.SSHClient()
         self._client.get_host_keys().load(KNOWN_HOSTS)
         self._sftp_client = None
-        self._terminal = None
-        self._cmd_prompt = PROMPT
-        self._sep = '===ENDLINUS==='
+        self._cwd = ''
 
     def connect(self):
         self._client.connect(self._name, username=self._user, port=self._port)
+        self._cwd = self.command('pwd').stdout[0]
         self._sftp_client = self._client.open_sftp()
-        self._terminal = self._client.invoke_shell()
-        try:
-            r = self.recv_all(timeout=5, contains=self._cmd_prompt, count=1)
-            print(r.stdout)
-            self._cmd_prompt = r.stdout.strip()[-1]
-        except TimeoutError as e:
-            s = str(e)
-            if s:
-                a = s.strip().split(self._cmd_prompt)
-                if len(a) > 1 and a[-1]:
-                    c = a[-1]
-                else:
-                    c = s.strip()[-1]
-                m = "\nCommand prompt doesn't contain '{0}'.\nConsider changing PROMPT to '{1}' in config.py." \
-                    "\nConnection successful.".format(self._cmd_prompt, c)
-                warnings.warn(m)
-                self._cmd_prompt = c
-            else:
-                raise TimeoutError('No response from virtual terminal. Check connection.')
 
-    def command(self, command, timeout=5, verbose=False):
+    def command(self, command, timeout=5, **kwargs):
         """Returns list of stdout lines and list of stderr lines"""
-        if verbose:
-            print('Executing remote command:', command)
-        self._terminal.send(command + '; \\\necho {0}\n'.format(self._sep))
-        r = self.recv_all(contains=self._sep, timeout=timeout)
-        s = r.stdout
-        try:
-            p, s, c = s.split(self._sep)
-        except ValueError:
-            raise ValueError('s is {0}'.format(s))
-        if not c.endswith(self._sep):
-            r = self.recv_all(contains=self._cmd_prompt, timeout=timeout, count=1)
-        r.stdout = s.strip().splitlines()
-        r.stderr = r.stderr.strip().splitlines()
+        if 'verbose' in kwargs:
+            warnings.warn("Use of 'verbose' in command is deprecated.", DeprecationWarning)
+        if command == 'pwd':
+            command = 'echo "$HOME"'
+        if command.startswith('cd'):
+            submit_command = command
+        else:
+            submit_command = 'cd {0}; '.format(self._cwd) + command
+        response = self._client.exec_command(submit_command, timeout=timeout)
+        out = [x.strip() for x in response[1].readlines()]
+        err = [x.strip() for x in response[2].readlines()]
+        r = Bunch(
+            stdout=out,
+            stderr=err
+        )
         return r
-
-    def recv_all(self, timeout=0, contains=None, count=2):
-        t = 0
-        interval = 0.1
-        first = True
-        e = r = ''
-        while first or (contains and r.count(contains) < count):
-            while not self._terminal.recv_ready() or self._terminal.recv_stderr_ready():
-                time.sleep(interval)
-                t += interval
-                if timeout and t > timeout:
-                    raise TimeoutError(r)
-            first = False
-            while self._terminal.recv_ready():
-                r += self._terminal.recv(1000).decode('utf-8', 'ignore')
-            while self._terminal.recv_stderr_ready():
-                e += self._terminal.recv_stderr(1000).decode('utf-8', 'ignore')
-        return Bunch(stdout=r, stderr=e)
 
     def open(self, filename, update_cwd=True):
         if update_cwd:
-            r = self.pwd()
-            pwd = r.stdout[0]
-            self._sftp_client.chdir(pwd)
+            self._sftp_client.chdir(self._cwd.strip('"\''))
         remote_file = self._sftp_client.open(filename)
         return remote_file
+
+    def cd(self, directory=''):
+        directory = directory.strip('\'"')
+        if directory == '':
+            full_dir = ''
+        elif directory.startswith('/'):
+            full_dir = directory
+        else:
+            full_dir = '/'.join([self._cwd, directory])
+        if ' ' in full_dir:
+            full_dir = "'{0}'".format(full_dir)
+        resp = self.command('cd {0}'.format(full_dir))
+        if not resp.stderr:
+            server_dir = self.command('cd {0}; echo $PWD'.format(full_dir)).stdout[0]
+            if ' ' in server_dir:
+                server_dir = '"{0}"'.format(server_dir)
+            self._cwd = server_dir
+        return resp
+
+    def pwd(self):
+        return self._cwd
 
     def ftp_get(self, remote, local=None, update_cwd=True, recursive=False):
         if local is None:
@@ -102,9 +84,7 @@ class LinusBox:
         local = local.rstrip('/')
         remote = remote.rstrip('/')
         if update_cwd:
-            r = self.pwd()
-            pwd = r.stdout[0]
-            self._sftp_client.chdir(pwd)
+            self._sftp_client.chdir(self._cwd.strip("'\""))
         if recursive:
             # Check if remote is a directory
             if not self._sftp_client.stat(remote).st_mode // 2**15:
@@ -131,9 +111,7 @@ class LinusBox:
         local = local.rstrip('/')
         remote = remote.rstrip('/')
         if update_cwd:
-            r = self.pwd()
-            pwd = r.stdout[0]
-            self._sftp_client.chdir(pwd)
+            self._sftp_client.chdir(self._cwd.strip("'\""))
         if recursive:
             # Check if local is a directory
             if not os.stat(local).st_mode // 2**15:
@@ -141,7 +119,7 @@ class LinusBox:
                 # self._sftp_client.mkdir(remote) # This doesn't appear to work correctly.
                 cwd = self._sftp_client.getcwd()
                 if cwd is None:
-                    cwd = self.echo('$HOME')
+                    cwd = self.pwd() # This takes advantage of the fact that the channel always resets
                 self.mkdir('/'.join([cwd, remote]))
                 self._sftp_client.chdir(remote)
                 # get contents of local directory
@@ -152,11 +130,6 @@ class LinusBox:
                 self._sftp_client.chdir(cwd)
                 return
         self._sftp_client.put(local, remote)
-
-    def ls(self, *args, **kwargs):
-        r = self.command(' '.join(['ls', '-1'] + [str(x) for x in args]), **kwargs)
-        r.stdout = [x.rstrip('/') for x in r.stdout if x not in ['./', '../']]
-        return r
 
     def __getattr__(self, item):
         return lambda *args, **kwargs: self.command(' '.join([item] + [str(x) for x in args]), **kwargs)

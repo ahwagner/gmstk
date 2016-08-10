@@ -1,5 +1,3 @@
-__author__ = 'Alex H Wagner'
-
 import os
 
 HOME = os.environ['HOME']

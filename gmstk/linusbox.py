@@ -1,5 +1,3 @@
-__author__ = 'Alex H Wagner'
-
 import paramiko
 import warnings
 from pathlib import Path

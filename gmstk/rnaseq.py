@@ -38,6 +38,24 @@ class RNAModel(GMSModel):
                 return None
         return self._gene_fpkm_df
 
+    def get_gene_fpkm_value(self, ensembl_id=None, gene_symbol=None):
+        if ensembl_id is not None:
+            v = self.gene_fpkm_df.loc[self.gene_fpkm_df['tracking_id'] == ensembl_id, 'FPKM'].values[0]
+        elif gene_symbol is not None:
+            v = self.gene_fpkm_df.loc[self.gene_fpkm_df['gene_short_name'] == gene_symbol, 'FPKM'].values[0]
+        return float(str(v))  # Automatically rounds and truncates
+
+    def get_genes_fpkm_dict(self, ensembl_ids=None, gene_symbols=None):
+        if ensembl_ids is not None:
+            df = self.gene_fpkm_df.loc[self.gene_fpkm_df['tracking_id']\
+                                           .isin(ensembl_ids), ['tracking_id', 'FPKM']]
+            d = df.set_index('tracking_id')['FPKM'].to_dict()
+        elif gene_symbols is not None:
+            df = self.gene_fpkm_df.loc[self.gene_fpkm_df['gene_short_name']\
+                                           .isin(gene_symbols), ['gene_short_name', 'FPKM']]
+            d = df.set_index('gene_short_name')['FPKM'].to_dict()
+        return d
+
 
 class RNAModelGroup(RNAModel, GMSModelGroup):
 

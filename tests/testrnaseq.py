@@ -25,25 +25,48 @@ class TestRNASeq:
             'e500af4baa1943deaba23c17ac7762f4'
         ]
         cls.models = [RNAModel(x, update_on_init=False) for x in test_models]
-        cls.models[0].update()
+        cls.model = cls.models[0]
+        cls.model.update()
         cls.model_group = RNAModelGroup('34ec706e075d4335ab9bd83392e79d66', update_models_on_init=False)
 
     def a_rna_gene_expression_path_is_correct_test(self):
-        model = self.models[0]
-        assert model.gene_fpkm_path != ''
-        assert model.gene_fpkm_path is not None
+        assert self.model.gene_fpkm_path != ''
+        assert self.model.gene_fpkm_path is not None
 
     def b_rna_expression_is_dataframe_test(self):
-        model = self.models[0]
-        assert model.gene_fpkm_df is not None
-        assert isinstance(model.gene_fpkm_df, pd.DataFrame)
-        assert not model.gene_fpkm_df.empty
+        assert self.model.gene_fpkm_df is not None
+        assert isinstance(self.model.gene_fpkm_df, pd.DataFrame)
+        assert not self.model.gene_fpkm_df.empty
 
     def c_models_in_model_group_test(self):
         ids = set([x.model_id for x in self.models])
         assert ids == self.model_group.model_ids
 
     def d_model_group_update_works_test(self):
-        model = self.models[0]
         self.model_group.update()
-        assert model.gene_fpkm_path == self.model_group.models[model.model_id].gene_fpkm_path
+        assert self.model.gene_fpkm_path == self.model_group.models[self.model.model_id].gene_fpkm_path
+
+    def e_get_gene_expr_value_from_model_test(self):
+        abca4_expr = self.model.get_gene_fpkm_value(gene_symbol='ABCA4')
+        assert abca4_expr == 0.00358818
+        assert abca4_expr == self.model.get_gene_fpkm_value(ensembl_id='ENSG00000198691')
+
+    def f_get_genes_expr_dict_from_model_test(self):
+        expr_dict = self.model.get_genes_fpkm_dict(gene_symbols=['ABCA4', 'TP53', 'RB1'])
+        assert expr_dict == {
+            'ABCA4': 0.00358818,
+            'TP53': 2.6007,
+            'RB1': 18.6915
+        }
+        ensembl_ids = ['ENSG00000198691', 'ENSG00000139687', 'ENSG00000141510']
+        assert sorted(expr_dict.values()) == sorted(self.model.get_genes_fpkm_dict(ensembl_ids=ensembl_ids).values())
+
+    def g_get_gene_expr_values_from_model_group_test(self):
+        results = self.model_group.get_gene_fpkm_values(gene_symbol='ABCA4')
+        expected_fpkm = {
+            'e570f1bae29048348bf0f1d078ebf8e8': 0.00358818,
+            '84b0d238d6b8410da864706096bfcc16': 0.137881,
+            '340b04d8dbcc475691f850ac14d475a8': 0.652401
+        }
+        for model, fpkm in expected_fpkm.items():
+            assert results[model] == fpkm

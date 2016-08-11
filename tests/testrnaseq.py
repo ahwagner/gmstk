@@ -1,5 +1,6 @@
 from gmstk.rnaseq import RNAModel, RNAModelGroup
 import pandas as pd
+import pickle
 
 
 class TestRNASeq:
@@ -26,8 +27,20 @@ class TestRNASeq:
         ]
         cls.models = [RNAModel(x, update_on_init=False) for x in test_models]
         cls.model = cls.models[0]
-        cls.model.update()
+        cls.model.update()  # Comment out if not using cls.model (for method-level test subsets)
         cls.model_group = RNAModelGroup('34ec706e075d4335ab9bd83392e79d66', update_models_on_init=False)
+
+        # Temporary speedup for testing follows
+        # with open('tests/fixtures/model_group.pickle', 'rb') as f:
+        #     mg = pickle.load(f)
+        # cls.model_group.models = mg.models
+
+    @classmethod
+    def teardown_class(cls):
+        # Uncomment after successful test suite to update pickle
+        # with open('tests/fixtures/model_group.pickle', 'wb') as f:
+        #     pickle.dump(cls.model_group, f)
+        pass
 
     def a_rna_gene_expression_path_is_correct_test(self):
         assert self.model.gene_fpkm_path != ''
@@ -40,7 +53,7 @@ class TestRNASeq:
 
     def c_models_in_model_group_test(self):
         ids = set([x.model_id for x in self.models])
-        assert ids == self.model_group.model_ids
+        assert ids == self.model_group.model_labels
 
     def d_model_group_update_works_test(self):
         self.model_group.update()
@@ -62,7 +75,7 @@ class TestRNASeq:
         assert sorted(expr_dict.values()) == sorted(self.model.get_genes_fpkm_dict(ensembl_ids=ensembl_ids).values())
 
     def g_get_gene_expr_values_from_model_group_test(self):
-        results = self.model_group.get_gene_fpkm_values(gene_symbol='ABCA4')
+        results = self.model_group.get_gene_fpkm_value(gene_symbol='ABCA4')
         expected_fpkm = {
             'e570f1bae29048348bf0f1d078ebf8e8': 0.00358818,
             '84b0d238d6b8410da864706096bfcc16': 0.137881,
@@ -70,3 +83,17 @@ class TestRNASeq:
         }
         for model, fpkm in expected_fpkm.items():
             assert results[model] == fpkm
+
+    def h_get_gene_expr_df_from_model_group_test(self):
+        df = self.model_group.gene_fpkm_df
+        assert df is not None
+        assert isinstance(df, pd.DataFrame)
+        assert not df.empty
+
+    def i_split_models_on_sample_type_test(self):
+        d = self.model_group.split_models_on_field('subject_common_name', True)
+        assert set(['tumor', 'relapse']) == set(d), 'set(d) is {0}'.format(set(d))
+        assert set(['93887cf6bf984a53a3e15cf4d5ffef93',
+                    '3adc43199fd54d2c80c1fb2bb37b05a0',
+                    'fbd22550ad954ebd950535f00ac39c0c']) == set(d['tumor']), \
+            'models in "tumor" are {0}'.format(set(d['tumor']))

@@ -1,5 +1,7 @@
 from gmstk.model import GMSModel, GMSModelGroup
 import pandas as pd
+from collections import Counter, defaultdict
+import warnings
 
 
 class RNAModel(GMSModel):
@@ -59,10 +61,11 @@ class RNAModel(GMSModel):
 
 class RNAModelGroup(RNAModel, GMSModelGroup):
 
-    def __init__(self, model_id, update_models_on_init=True, *args, **kwargs):
+    def __init__(self, model_id, update_models_on_init=True, default_label='model_id', *args, **kwargs):
         GMSModelGroup.__init__(self, model_id, *args, **kwargs)
         self.filter_values = {'model_groups.id': self.model_id}
         self.update(update_models=update_models_on_init)
+        self._default_label = default_label
 
     def update(self, raw=False, update_models=True):
         r = GMSModelGroup.update(self, raw=True)
@@ -71,3 +74,34 @@ class RNAModelGroup(RNAModel, GMSModelGroup):
             d = dict(zip(keys, line.split()))
             self.models[d['id']] = RNAModel(d['id'], False)
             self.models[d['id']].set_attr_from_dict(d)
+
+    def get_gene_fpkm_value(self, ensembl_id=None, gene_symbol=None):
+        d = dict()
+        for model in self.models.values():
+            d[getattr(model, self.default_label)] = model.get_gene_fpkm_value(ensembl_id=ensembl_id, gene_symbol=gene_symbol)
+        return d
+
+    @property
+    def default_label(self):
+        return self._default_label
+
+    @default_label.setter
+    def default_label(self, value):
+        counter = Counter()
+        for model in self.models:
+            counter[getattr(model, value)] += 1
+        if counter.most_common(1)[0][1] > 1:
+            warnings.warn('Label is not unique across models. Reverting to previous label ({0})'.format(self.default_label))
+        else:
+            self._default_label = value
+
+    @property
+    def gene_fpkm_df(self):
+        df = pd.DataFrame()
+        colnames = list()
+        for model in self.models.values():
+            colnames.append(getattr(model, self.default_label))
+            df = pd.concat([df, model.gene_fpkm_df['FPKM']], axis=1)
+        df.columns = colnames
+        return df
+

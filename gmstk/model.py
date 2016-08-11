@@ -1,4 +1,5 @@
 from gmstk.linusbox import *
+from collections import defaultdict
 import logging
 
 
@@ -44,6 +45,13 @@ class GMSModel:
     def attributes(self):
         return {x: getattr(self, x) for x in dir(self) if x not in dir(self.__class__)}
 
+    def copy(self):
+        """returns a shallow copy of the model"""
+        c = self.__class__(self.model_id, update_on_init=False)
+        attr = self.attributes()
+        c.set_attr_from_dict(attr)
+        return c
+
 
 class GMSModelGroup(GMSModel):
 
@@ -55,8 +63,23 @@ class GMSModelGroup(GMSModel):
         return len(self.models)
 
     @property
-    def model_ids(self):
+    def model_labels(self):
         return set(self.models.keys())
+
+    def copy(self):
+        c = self.__class__(self.model_id, update_models_on_init=False)
+        for model_id, model in self.models.items():
+            c.models[model_id] = model.copy()
+        return c
+
+    def split_models_on_field(self, field, model_ids_only=False):
+        d = defaultdict(list)
+        for model in self.models.values():
+            d[getattr(model, field)].append(model)
+        if model_ids_only:
+            for key in d:
+                d[key] = [x.model_id for x in d[key]]
+        return dict(d)
 
     # def select(self, **kw):
     #     keys = sorted(self.show_values)

@@ -46,7 +46,7 @@ class TestRNASeq:
         assert self.model.gene_fpkm_path != ''
         assert self.model.gene_fpkm_path is not None
 
-    def b_rna_expression_is_dataframe_test(self):
+    def b_model_expression_dataframe_test(self):
         assert self.model.gene_fpkm_df is not None
         assert isinstance(self.model.gene_fpkm_df, pd.DataFrame)
         assert not self.model.gene_fpkm_df.empty
@@ -60,22 +60,22 @@ class TestRNASeq:
         assert self.model.gene_fpkm_path == self.model_group.models[self.model.model_id].gene_fpkm_path
 
     def e_get_gene_expr_value_from_model_test(self):
-        abca4_expr = self.model.get_gene_fpkm_value(gene_symbol='ABCA4')
+        abca4_expr = self.model.get_gene_fpkm(gene_symbol='ABCA4')
         assert abca4_expr == 0.00358818
-        assert abca4_expr == self.model.get_gene_fpkm_value(ensembl_id='ENSG00000198691')
+        assert abca4_expr == self.model.get_gene_fpkm(ensembl_id='ENSG00000198691')
 
     def f_get_genes_expr_dict_from_model_test(self):
-        expr_dict = self.model.get_genes_fpkm_dict(gene_symbols=['ABCA4', 'TP53', 'RB1'])
+        expr_dict = self.model.get_genes_fpkm(gene_symbols=['ABCA4', 'TP53', 'RB1'])
         assert expr_dict == {
             'ABCA4': 0.00358818,
             'TP53': 2.6007,
             'RB1': 18.6915
         }
         ensembl_ids = ['ENSG00000198691', 'ENSG00000139687', 'ENSG00000141510']
-        assert sorted(expr_dict.values()) == sorted(self.model.get_genes_fpkm_dict(ensembl_ids=ensembl_ids).values())
+        assert sorted(expr_dict.values()) == sorted(self.model.get_genes_fpkm(ensembl_ids=ensembl_ids).values())
 
     def g_get_gene_expr_values_from_model_group_test(self):
-        results = self.model_group.get_gene_fpkm_value(gene_symbol='ABCA4')
+        results = self.model_group.get_gene_fpkm(gene_symbol='ABCA4')
         expected_fpkm = {
             'e570f1bae29048348bf0f1d078ebf8e8': 0.00358818,
             '84b0d238d6b8410da864706096bfcc16': 0.137881,
@@ -84,7 +84,7 @@ class TestRNASeq:
         for model, fpkm in expected_fpkm.items():
             assert results[model] == fpkm
 
-    def h_get_gene_expr_df_from_model_group_test(self):
+    def h_model_group_expression_dataframe_test(self):
         df = self.model_group.gene_fpkm_df
         assert df is not None
         assert isinstance(df, pd.DataFrame)
@@ -97,3 +97,9 @@ class TestRNASeq:
                     '3adc43199fd54d2c80c1fb2bb37b05a0',
                     'fbd22550ad954ebd950535f00ac39c0c']) == set(d['tumor']), \
             'models in "tumor" are {0}'.format(set(d['tumor']))
+
+    def j_get_genes_expr_df_from_model_group_test(self):
+        df = self.model_group.get_genes_fpkm(gene_symbols=['ABCA4', 'TP53', 'RB1'])
+        assert df is not None
+        assert isinstance(df, pd.DataFrame)
+        assert df.shape == (3, 18)

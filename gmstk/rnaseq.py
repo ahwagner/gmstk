@@ -40,14 +40,14 @@ class RNAModel(GMSModel):
                 return None
         return self._gene_fpkm_df
 
-    def get_gene_fpkm_value(self, ensembl_id=None, gene_symbol=None):
+    def get_gene_fpkm(self, ensembl_id=None, gene_symbol=None):
         if ensembl_id is not None:
             v = self.gene_fpkm_df.loc[self.gene_fpkm_df['tracking_id'] == ensembl_id, 'FPKM'].values[0]
         elif gene_symbol is not None:
             v = self.gene_fpkm_df.loc[self.gene_fpkm_df['gene_short_name'] == gene_symbol, 'FPKM'].values[0]
         return float(str(v))  # Automatically rounds and truncates
 
-    def get_genes_fpkm_dict(self, ensembl_ids=None, gene_symbols=None):
+    def get_genes_fpkm(self, ensembl_ids=None, gene_symbols=None):
         if ensembl_ids is not None:
             df = self.gene_fpkm_df.loc[self.gene_fpkm_df['tracking_id']\
                                            .isin(ensembl_ids), ['tracking_id', 'FPKM']]
@@ -75,11 +75,16 @@ class RNAModelGroup(RNAModel, GMSModelGroup):
             self.models[d['id']] = RNAModel(d['id'], False)
             self.models[d['id']].set_attr_from_dict(d)
 
-    def get_gene_fpkm_value(self, ensembl_id=None, gene_symbol=None):
+    def get_gene_fpkm(self, ensembl_id=None, gene_symbol=None):
         d = dict()
         for model in self.models.values():
-            d[getattr(model, self.default_label)] = model.get_gene_fpkm_value(ensembl_id=ensembl_id, gene_symbol=gene_symbol)
+            d[getattr(model, self.default_label)] = model.get_gene_fpkm(ensembl_id=ensembl_id, gene_symbol=gene_symbol)
         return d
+
+    def get_genes_fpkm(self, ensembl_ids=None, gene_symbols=None):
+        full_df = self.gene_fpkm_df
+        if ensembl_ids is not None:
+            pass
 
     @property
     def default_label(self):
@@ -97,11 +102,10 @@ class RNAModelGroup(RNAModel, GMSModelGroup):
 
     @property
     def gene_fpkm_df(self):
-        df = pd.DataFrame()
-        colnames = list()
+        colnames = ['gene_short_name', 'tracking_id']
+        df = list(self.models.values())[0].gene_fpkm_df[colnames]
         for model in self.models.values():
             colnames.append(getattr(model, self.default_label))
             df = pd.concat([df, model.gene_fpkm_df['FPKM']], axis=1)
         df.columns = colnames
         return df
-

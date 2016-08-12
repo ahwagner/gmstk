@@ -42,6 +42,13 @@ class GMSModel:
                 continue
             setattr(self, k, d[k])
 
+    @classmethod
+    def search(cls, search_terms):
+        f_call = ','.join(['{0}={1}'.format(k, v) for k, v in search_terms.items()])
+        c = 'genome {0} list --noheader --filter {1} --show id'.format(cls.gms_type, f_call)
+        r = cls.linus.command(c, timeout=15)
+        return r.stdout
+
     def attributes(self):
         return {x: getattr(self, x) for x in dir(self) if x not in dir(self.__class__)}
 
@@ -78,7 +85,7 @@ class GMSModelGroup(GMSModel):
             d[getattr(model, field)].append(model)
         if model_ids_only:
             for key in d:
-                d[key] = [x.model_id for x in d[key]]
+                d[key] = sorted([x.model_id for x in d[key]])
         return dict(d)
 
     # def select(self, **kw):

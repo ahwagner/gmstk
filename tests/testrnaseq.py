@@ -103,3 +103,8 @@ class TestRNASeq:
         assert df is not None
         assert isinstance(df, pd.DataFrame)
         assert df.shape == (3, 18)
+
+
+class TestDifferentialExpression:
+
+    pass

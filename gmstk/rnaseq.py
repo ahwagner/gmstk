@@ -1,6 +1,6 @@
 from gmstk.model import GMSModel, GMSModelGroup
 import pandas as pd
-from collections import Counter, defaultdict
+from collections import Counter
 import warnings
 
 
@@ -46,6 +46,12 @@ class RNAModel(GMSModel):
         elif gene_symbol is not None:
             v = self.gene_fpkm_df.loc[self.gene_fpkm_df['gene_short_name'] == gene_symbol, 'FPKM'].values[0]
         return float(str(v))  # Automatically rounds and truncates
+
+    def attributes(self):
+        data = {
+            x: getattr(self, x) for x in self.show_values
+        }
+        return pd.Series(data)
 
     def get_genes_fpkm(self, ensembl_ids=None, gene_symbols=None):
         if ensembl_ids is not None:
@@ -111,3 +117,22 @@ class RNAModelGroup(RNAModel, GMSModelGroup):
             df = pd.concat([df, model.gene_fpkm_df['FPKM']], axis=1)
         df.columns = colnames
         return df
+
+    def attributes(self):
+        data = dict()
+        for model_id, model in self.models.items():
+            data[model_id] = model.attributes().to_dict()
+        return pd.DataFrame.from_dict(data, orient='index')
+
+    def get_differential_expression_models(self):
+        pass
+
+
+class DifferentialExpressionModel(GMSModel):
+
+    gms_type = 'model differential-expression'
+    show_values = {
+        'id': 'id',
+        'processing_profile': 'processing_profile.id',
+        'condition_pairs': 'condition_pairs'
+    }

@@ -82,9 +82,11 @@ class RNAModelGroup(RNAModel, GMSModelGroup):
         return d
 
     def get_genes_fpkm(self, ensembl_ids=None, gene_symbols=None):
-        full_df = self.gene_fpkm_df
+        df = self.gene_fpkm_df
         if ensembl_ids is not None:
-            pass
+            return df[df['tracking_id'].isin(ensembl_ids)]
+        elif gene_symbols is not None:
+            return df[df['gene_short_name'].isin(gene_symbols)]
 
     @property
     def default_label(self):

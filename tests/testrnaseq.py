@@ -1,6 +1,5 @@
 from gmstk.rnaseq import RNAModel, RNAModelGroup
 import pandas as pd
-import pickle
 
 
 class TestRNASeq:
@@ -27,19 +26,11 @@ class TestRNASeq:
         ]
         cls.models = [RNAModel(x, update_on_init=False) for x in test_models]
         cls.model = cls.models[0]
-        cls.model.update()  # Comment out if not using cls.model (for method-level test subsets)
+        cls.model.update()
         cls.model_group = RNAModelGroup('34ec706e075d4335ab9bd83392e79d66', update_models_on_init=False)
-
-        # Temporary speedup for testing follows
-        # with open('tests/fixtures/model_group.pickle', 'rb') as f:
-        #     mg = pickle.load(f)
-        # cls.model_group.models = mg.models
 
     @classmethod
     def teardown_class(cls):
-        # Uncomment after successful test suite to update pickle
-        # with open('tests/fixtures/model_group.pickle', 'wb') as f:
-        #     pickle.dump(cls.model_group, f)
         pass
 
     def a_rna_gene_expression_path_is_correct_test(self):

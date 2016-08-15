@@ -65,21 +65,13 @@ class RNAModel(GMSModel):
         return d
 
 
-class RNAModelGroup(RNAModel, GMSModelGroup):
+class RNAModelGroup(GMSModelGroup, RNAModel):
 
     def __init__(self, model_id, update_models_on_init=True, default_label='model_id', *args, **kwargs):
         GMSModelGroup.__init__(self, model_id, *args, **kwargs)
         self.filter_values = {'model_groups.id': self.model_id}
         self.update(update_models=update_models_on_init)
         self._default_label = default_label
-
-    def update(self, raw=False, update_models=True):
-        r = GMSModelGroup.update(self, raw=True)
-        keys = sorted(self.show_values)
-        for line in r.stdout:
-            d = dict(zip(keys, line.split()))
-            self.models[d['id']] = RNAModel(d['id'], False)
-            self.models[d['id']].set_attr_from_dict(d)
 
     def get_gene_fpkm(self, ensembl_id=None, gene_symbol=None):
         d = dict()

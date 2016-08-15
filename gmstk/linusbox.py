@@ -29,10 +29,9 @@ class LinusBox:
         self._cwd = self.command('pwd').stdout[0]
         self._sftp_client = self._client.open_sftp()
 
-    def command(self, command, timeout=5, **kwargs):
+    def command(self, command, timeout=5, style='list', **kwargs):
         """Returns list of stdout lines and list of stderr lines"""
-        if 'verbose' in kwargs:
-            warnings.warn("Use of 'verbose' in command is deprecated.", DeprecationWarning)
+
         if command == 'pwd':
             command = 'echo "$HOME"'
         if command.startswith('cd'):
@@ -40,8 +39,12 @@ class LinusBox:
         else:
             submit_command = 'cd {0}; '.format(self._cwd) + command
         response = self._client.exec_command(submit_command, timeout=timeout)
-        out = [x.strip() for x in response[1].readlines()]
-        err = [x.strip() for x in response[2].readlines()]
+        if style == 'list':
+            out = [x.strip() for x in response[1].readlines()]
+            err = [x.strip() for x in response[2].readlines()]
+        elif style == 'file':
+            out = response[1]
+            err = response[2]
         r = Bunch(
             stdout=out,
             stderr=err

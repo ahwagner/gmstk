@@ -1,5 +1,6 @@
 from gmstk.linusbox import *
 from collections import defaultdict
+import xml.etree.ElementTree as ET
 import logging
 
 
@@ -25,18 +26,26 @@ class GMSModel:
         fd = self.filter_values
         f_keys = sorted(fd)
         f_call = ','.join(['{0}={1}'.format(x, fd[x]) for x in f_keys])
-        c = 'genome {0} list --noheaders'.format(self.gms_type)
+        c = 'genome {0} list --noheaders --style=xml'.format(self.gms_type)
+        # TODO: Remove the prepend string after UR update
+        c = 'genome-perl -I ~/git/UR/lib -S ' + c
         if f_call:
             c += ' --filter {0}'.format(f_call)
         if v_call:
             c += ' --show {0}'.format(v_call)
-        r = self.linus.command(c, timeout=15)
+        r = self.linus.command(c, timeout=15, style='file')
         if raw:
             return r
-        d = dict(zip(keys, r.stdout[0].split()))
-        self.set_attr_from_dict(d)
+        # From here, it is expected that there is only one result object
+        tree = ET.parse(r.stdout)
+        object = tree.getroot().find('object')
+        d = dict()
+        for key in keys:
+            value = object.find(self.show_values[key]).text
+            d[key] = value
+        self._set_attr_from_dict(d)
 
-    def set_attr_from_dict(self, d):
+    def _set_attr_from_dict(self, d):
         for k in d:
             if d[k] == '<NULL>':
                 continue
@@ -45,7 +54,7 @@ class GMSModel:
     @classmethod
     def search(cls, search_terms):
         f_call = ','.join(['{0}={1}'.format(k, v) for k, v in search_terms.items()])
-        c = 'genome {0} list --noheader --filter {1} --show id'.format(cls.gms_type, f_call)
+        c = 'genome {0} list --style=xml --noheader --filter {1} --show id'.format(cls.gms_type, f_call)
         r = cls.linus.command(c, timeout=15)
         return r.stdout
 
@@ -56,7 +65,7 @@ class GMSModel:
         """returns a shallow copy of the model"""
         c = self.__class__(self.model_id, update_on_init=False)
         attr = self.attributes()
-        c.set_attr_from_dict(attr)
+        c._set_attr_from_dict(attr)
         return c
 
 
@@ -88,35 +97,17 @@ class GMSModelGroup(GMSModel):
                 d[key] = sorted([x.model_id for x in d[key]])
         return dict(d)
 
-    # def select(self, **kw):
-    #     keys = sorted(self.show_values)
-    #     result = []
-    #     for k in kw:
-    #         if k not in keys:
-    #             raise KeyError('Invalid key {0}. See self.show_values for keys.'.format(k))
-    #         v = kw[k]
-    #         try:
-    #             d = getattr(self, k)
-    #         except AttributeError:
-    #             if v is not False:
-    #                 return None
-    #             else:
-    #                 result.append(self.model_ids)
-    #                 continue
-    #         if v is True:
-    #             result.append(set(d))
-    #         elif v is False:
-    #             result.append(self.model_ids - set(d))
-    #         else:
-    #             s = set()
-    #             for dk in d:
-    #                 if d[dk] == v:
-    #                     s.add(dk)
-    #             result.append(s)
-    #     if result:
-    #         s = result.pop()
-    #         while result:
-    #             s &= result.pop()
-    #         if s:
-    #             return s
-    #     return None
+    def update(self, raw=False, update_models=True):
+        base = self.__class__.__bases__[1]
+        r = GMSModel.update(self, raw=True)
+        keys = sorted(self.show_values)
+        tree = ET.parse(r.stdout)
+        for object in tree.getroot().findall('object'):
+            d = dict()
+            model_id = object.attrib['id']
+            model = base(model_id, update_on_init=False)
+            for key in keys:
+                value = object.find(self.show_values[key]).text
+                d[key] = value
+            model._set_attr_from_dict(d)
+            self.models[model_id] = model

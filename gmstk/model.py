@@ -27,8 +27,6 @@ class GMSModel:
         f_keys = sorted(fd)
         f_call = ','.join(['{0}={1}'.format(x, fd[x]) for x in f_keys])
         c = 'genome {0} list --noheaders --style=xml'.format(self.gms_type)
-        # TODO: Remove the prepend string after UR update
-        c = 'genome-perl -I ~/git/UR/lib -S ' + c
         if f_call:
             c += ' --filter {0}'.format(f_call)
         if v_call:

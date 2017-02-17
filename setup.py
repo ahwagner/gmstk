@@ -7,5 +7,7 @@ setup(name='gmstk',
       description='GMS tooklit',
       author='Alex Wagner',
       author_email='awagner24@wustl.edu',
-      packages=['gmstk']
+      packages=['gmstk'],
+      requires=['paramiko', 'pandas'],
+      provides=['gmstk']
       )

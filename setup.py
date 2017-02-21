@@ -3,11 +3,20 @@
 from distutils.core import setup
 
 setup(name='gmstk',
-      version='0.1',
+      version='0.1.0a1',
       description='GMS tooklit',
       author='Alex Wagner',
       author_email='awagner24@wustl.edu',
+      url='https://github.com/ahwagner/gmstk',
+      license='MIT',
+      classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.6',
+      ],
+      keywords='gms toolkit',
       packages=['gmstk'],
-      requires=['paramiko', 'pandas'],
-      provides=['gmstk']
+      install_requires=['paramiko', 'pandas']
       )

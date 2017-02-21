@@ -81,6 +81,8 @@ class LinusBox:
         if local is None:
             p = Path(remote)
             local = p.name
+        if isinstance(local, Path):
+            local = str(local)
         local = local.rstrip('/')
         remote = remote.rstrip('/')
         if update_cwd:
@@ -102,6 +104,8 @@ class LinusBox:
                     self.ftp_get('/'.join([remote, d]), d, update_cwd=False)
                 os.chdir(start)
                 return
+        if os.path.dirname(local):
+            os.makedirs(os.path.dirname(local), exist_ok=True)
         self._sftp_client.get(remote, local)
 
     def ftp_put(self, local, remote=None, update_cwd=True, recursive=False):

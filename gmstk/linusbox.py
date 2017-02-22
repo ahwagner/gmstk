@@ -55,7 +55,7 @@ class LinusBox:
     def prompt_ssh_config(self):
         self._host = input("Please enter the remote hostname: ")
         self._user = input("Please enter the remote username: ")
-        save = input("Save to configuration file? (y/n): ")
+        save = input("Save to configuration file? (y/N): ")
         if save.lower().startswith('y'):
             self.save_config()
 

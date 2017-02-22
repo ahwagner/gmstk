@@ -1,9 +1,9 @@
 import paramiko
-from pathlib import Path
+import os
 from gmstk.config import *
+from warnings import warn
+from getpass import getpass
 
-
-KNOWN_HOSTS = HOME + "/.ssh/known_hosts"
 # Consider rewriting this with the fabric module once it is compatible with 3.x
 
 
@@ -14,23 +14,77 @@ class Bunch:
 
 class LinusBox:
 
-    def __init__(self, name=LINUSNAME, user=USER, port=22):
-        self._name = name
-        self._user = user
-        self._port = port
+    def __init__(self, host=HOSTNAME, user=USER, port=PORT):
+        self._host = host or os.environ.get('GMSTK_SSH_HOST')
+        self._user = user or os.environ.get('GMSTK_SSH_USER')
+        self._port = port or os.environ.get('GMSTK_SSH_PORT')
+        self._pass = None
+        self._connected = False
+        if not (self._host and self._user):
+            # warn("Remote credentials incomplete. Modify {} to suppress this dialogue.".format(CONFIG_PATH))
+            self.prompt_ssh_config()
         self._client = paramiko.SSHClient()
-        self._client.get_host_keys().load(KNOWN_HOSTS)
+        try:
+            self._client.get_host_keys().load(KNOWN_HOSTS)
+        except FileNotFoundError:
+            print("KNOWN_HOSTS file ({}) not found.".format(KNOWN_HOSTS))
         self._sftp_client = None
         self._cwd = ''
 
     def connect(self):
-        self._client.connect(self._name, username=self._user, port=self._port)
+        kwargs = {}
+        if self._pass is not None:
+            kwargs['password'] = self._pass
+        try:
+            self._client.connect(self._host, username=self._user,
+                                 port=self._port, timeout=3, **kwargs)
+        except TimeoutError:
+            warn("Connection timeout. Re-trying...")
+            self._client.connect(self._host, username=self._user,
+                                 port=self._port, timeout=10, **kwargs)
+        except paramiko.ssh_exception.AuthenticationException:
+            print('Authentication failed. Please specify password for {} on {}.'.format(self._user, self._host))
+            self.prompt_ssh_pass()
+            self.connect()
+            return
+        self._connected = True
         self._cwd = self.command('pwd').stdout[0]
         self._sftp_client = self._client.open_sftp()
+        print('Successfully connected to remote host.')
 
-    def command(self, command, timeout=5, style='list', **kwargs):
+    def prompt_ssh_config(self):
+        self._host = input("Please enter the remote hostname: ")
+        self._user = input("Please enter the remote username: ")
+        save = input("Save to configuration file? (y/n): ")
+        if save.lower().startswith('y'):
+            self.save_config()
+
+    def save_config(self):
+        with open(CONFIG_PATH, 'w') as f:
+            lines = ['from gmstk.defaults import *',
+                     'HOST = {}'.format(self._host),
+                     'USER = {}'.format(self._user)]
+            f.write("\n".join(lines))
+
+    def prompt_ssh_pass(self):
+        self._pass = getpass()
+
+    def command(self, *args, **kwargs):
+        if not self._connected:
+            print("Not connected. Attempting connection now...")
+            self.connect()
+            print("Reattempting command...")
+            return self.command(*args, **kwargs)
+        try:
+            return self._command(*args, **kwargs)
+        except TimeoutError:
+            print("Communication timeout. Reconnecting...")
+            self.reconnect()
+            print("Reattempting command...")
+            return self.command(*args, **kwargs)
+
+    def _command(self, command, timeout=5, style='list', **kwargs):
         """Returns list of stdout lines and list of stderr lines"""
-
         if command == 'pwd':
             command = 'echo "$HOME"'
         if command.startswith('cd'):
@@ -141,3 +195,8 @@ class LinusBox:
     def disconnect(self):
         self._sftp_client.close()
         self._client.close()
+        self._connected = False
+
+    def reconnect(self):
+        self.disconnect()
+        self.connect()

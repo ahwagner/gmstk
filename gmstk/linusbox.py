@@ -21,7 +21,7 @@ class LinusBox:
         self._pass = None
         self._connected = False
         if not (self._host and self._user):
-            # warn("Remote credentials incomplete. Modify {} to suppress this dialogue.".format(CONFIG_PATH))
+            print("Remote host credentials unspecified.".format(CONFIG_PATH))
             self.prompt_ssh_config()
         self._client = paramiko.SSHClient()
         try:
@@ -62,8 +62,8 @@ class LinusBox:
     def save_config(self):
         with open(CONFIG_PATH, 'w') as f:
             lines = ['from gmstk.defaults import *',
-                     'HOST = {}'.format(self._host),
-                     'USER = {}'.format(self._user)]
+                     "HOST = '{}'".format(self._host),
+                     "USER = '{}'".format(self._user)]
             f.write("\n".join(lines))
 
     def prompt_ssh_pass(self):

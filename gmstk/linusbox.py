@@ -14,7 +14,7 @@ class Bunch:
 
 class LinusBox:
 
-    def __init__(self, host=HOSTNAME, user=USER, port=PORT):
+    def __init__(self, host=HOSTNAME, user=USERNAME, port=PORT):
         self._host = host or os.environ.get('GMSTK_SSH_HOST')
         self._user = user or os.environ.get('GMSTK_SSH_USER')
         self._port = port or os.environ.get('GMSTK_SSH_PORT')
@@ -62,8 +62,8 @@ class LinusBox:
     def save_config(self):
         with open(CONFIG_PATH, 'w') as f:
             lines = ['from gmstk.defaults import *',
-                     "HOST = '{}'".format(self._host),
-                     "USER = '{}'".format(self._user)]
+                     "HOSTNAME = '{}'".format(self._host),
+                     "USERNAME = '{}'".format(self._user)]
             f.write("\n".join(lines))
 
     def prompt_ssh_pass(self):

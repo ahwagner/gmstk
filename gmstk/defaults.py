@@ -1,7 +1,7 @@
 from pathlib import Path
 
 HOME = Path.home()
-USER = ''
+USERNAME = ''
 HOSTNAME = ''
 PORT = 22
 KNOWN_HOSTS = HOME / ".ssh" / "known_hosts"

@@ -1,5 +1,7 @@
 import paramiko
 import os
+import shutil
+import subprocess
 from gmstk.config import *
 from warnings import warn
 from getpass import getpass
@@ -30,6 +32,10 @@ class LinusBox:
             print("KNOWN_HOSTS file ({}) not found.".format(KNOWN_HOSTS))
         self._sftp_client = None
         self._cwd = ''
+        if shutil.which('rsync'):
+            self._use_rsync = True
+        else:
+            self._use_rsync = False
 
     def connect(self):
         kwargs = {}
@@ -160,7 +166,37 @@ class LinusBox:
                 return
         if os.path.dirname(local):
             os.makedirs(os.path.dirname(local), exist_ok=True)
-        self._sftp_client.get(remote, local)
+        if self._use_rsync:
+            self.rsync(remote, local)
+        else:
+            self._sftp_client.get(remote, local)
+
+    def rsync(self, remote, local, mode='get'):
+        args = ['rsync', '-P', '-e', 'ssh']
+        if not remote.startswith('/'):
+            remote = '/'.join([self._sftp_client.getcwd(), remote])
+        if not local.startswith('/'):
+            local = '/'.join([os.getcwd(), local])
+        if self._pass:
+            raise ValueError('Please set up SSH keys')
+        if mode == 'get':
+            args.append('{}@{}:"{}"'.format(self._user, self._host, remote))
+            args.append(local)
+        elif mode == 'put':
+            args.append(local)
+            args.append('{}@{}:"{}"'.format(self._user, self._host, remote))
+        else:
+            raise ValueError('Expected mode to be "get" or "put"')
+        try:
+            resp = subprocess.run(args, stderr=subprocess.PIPE)
+            resp.check_returncode()
+        except subprocess.CalledProcessError as e:
+            if resp.returncode == 255:
+                print('Connection failed. Retrying in 10s...')
+                os.wait(10)
+                self.rsync(remote, local, mode)
+            else:
+                raise e
 
     def ftp_put(self, local, remote=None, update_cwd=True, recursive=False):
         if remote is None:
@@ -174,7 +210,6 @@ class LinusBox:
             # Check if local is a directory
             if not os.stat(local).st_mode // 2**15:
                 # make remote directory
-                # self._sftp_client.mkdir(remote) # This doesn't appear to work correctly.
                 cwd = self._sftp_client.getcwd()
                 if cwd is None:
                     cwd = self.pwd() # This takes advantage of the fact that the channel always resets
@@ -187,7 +222,10 @@ class LinusBox:
                     self.ftp_put('/'.join([local, d]), d, update_cwd=False)
                 self._sftp_client.chdir(cwd)
                 return
-        self._sftp_client.put(local, remote)
+        if self._use_rsync:
+            self.rsync(remote, local, mode='put')
+        else:
+            self._sftp_client.put(local, remote)
 
     def __getattr__(self, item):
         return lambda *args, **kwargs: self.command(' '.join([item] + [str(x) for x in args]), **kwargs)

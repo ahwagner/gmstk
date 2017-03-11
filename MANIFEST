@@ -3,6 +3,7 @@ setup.py
 gmstk/__init__.py
 gmstk/clinseq.py
 gmstk/config.py
+gmstk/defaults.py
 gmstk/linusbox.py
 gmstk/model.py
 gmstk/rnaseq.py

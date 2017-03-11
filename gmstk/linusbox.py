@@ -232,8 +232,11 @@ class LinusBox:
         return lambda *args, **kwargs: self.command(' '.join([item] + [str(x) for x in args]), **kwargs)
 
     def disconnect(self):
-        self._sftp_client.close()
-        self._client.close()
+        try:
+            self._sftp_client.close()
+            self._client.close()
+        except AttributeError:
+            pass
         self._connected = False
 
     def reconnect(self):

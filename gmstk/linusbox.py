@@ -192,8 +192,11 @@ class LinusBox:
             resp = subprocess.run(args, stderr=subprocess.PIPE)
             resp.check_returncode()
         except subprocess.CalledProcessError as e:
-            if resp.returncode == 255:
-                print('Connection failed. Retrying in 10s...')
+            if resp.returncode in [255, 23]:
+                if resp.returncode == 255:
+                    print('Connection failed. Retrying in 10s...')
+                if resp.returncode == 23:
+                    print('File transfer failed. Retrying in 10s...')
                 os.wait(10)
                 self.rsync(remote, local, mode)
             else:

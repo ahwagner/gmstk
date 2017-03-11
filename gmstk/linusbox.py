@@ -84,7 +84,7 @@ class LinusBox:
             return self.command(*args, **kwargs)
         try:
             return self._command(*args, **kwargs)
-        except TimeoutError:
+        except socket.timeout:
             print("Communication timeout. Reconnecting...")
             self.reconnect()
             print("Reattempting command...")

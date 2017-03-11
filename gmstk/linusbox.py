@@ -237,5 +237,6 @@ class LinusBox:
         self._connected = False
 
     def reconnect(self):
-        self.disconnect()
+        if self._connected:
+            self.disconnect()
         self.connect()

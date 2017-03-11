@@ -1,6 +1,7 @@
 import paramiko
 import os
 import shutil
+import socket
 import subprocess
 from gmstk.config import *
 from warnings import warn
@@ -44,7 +45,7 @@ class LinusBox:
         try:
             self._client.connect(self._host, username=self._user,
                                  port=self._port, timeout=3, **kwargs)
-        except TimeoutError:
+        except socket.timeout:
             warn("Connection timeout. Re-trying...")
             self._client.connect(self._host, username=self._user,
                                  port=self._port, timeout=10, **kwargs)

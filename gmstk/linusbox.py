@@ -1,5 +1,6 @@
 import paramiko
 import os
+import time
 import shutil
 import socket
 import subprocess
@@ -194,7 +195,7 @@ class LinusBox:
         except subprocess.CalledProcessError as e:
             if resp.returncode == 255:
                 print('Connection failed. Retrying in 10s...')
-                os.wait(10)
+                time.sleep(10)
                 self.rsync(remote, local, mode)
             else:
                 raise e

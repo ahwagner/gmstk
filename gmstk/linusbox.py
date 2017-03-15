@@ -174,7 +174,7 @@ class LinusBox:
             self._sftp_client.get(remote, local)
 
     def rsync(self, remote, local, mode='get'):
-        args = ['rsync', '-P', '-e', 'ssh']
+        args = ['rsync', '-P', '-L', '-e', 'ssh']
         if not remote.startswith('/'):
             remote = '/'.join([self._sftp_client.getcwd(), remote])
         if not local.startswith('/'):

@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='gmstk',
-      version='0.2.3',
+      version='0.2.4',
       description='GMS tooklit',
       author='Alex Wagner',
       author_email='awagner24@wustl.edu',
